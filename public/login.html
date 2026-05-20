@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login - Nani Ki Nushke</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<div class="auth-page">
+  <div class="auth-box">
+    <div class="auth-brand">
+      <div class="logo-text">🌿 Nani Ki Nushke</div>
+      <p>Welcome back! Sign in to continue</p>
+    </div>
+    <h2>Login</h2>
+
+    <div class="error-msg" id="errMsg"></div>
+    <div class="success-msg" id="sucMsg"></div>
+
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="email" placeholder="you@example.com" onkeydown="if(event.key==='Enter') login()"/>
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="password" placeholder="Your password" onkeydown="if(event.key==='Enter') login()"/>
+    </div>
+
+    <button class="btn-primary" onclick="login()" id="loginBtn">Login</button>
+
+    <div class="auth-link">
+      Don't have an account? <a href="register.html">Sign Up</a>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Redirect if already logged in
+  if (localStorage.getItem("email")) window.location = "index.html";
+
+  async function login() {
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+    const errEl = document.getElementById("errMsg");
+    const btn = document.getElementById("loginBtn");
+
+    errEl.style.display = "none";
+
+    if (!email || !password) {
+      errEl.textContent = "Please fill in all fields";
+      errEl.style.display = "block";
+      return;
+    }
+
+    btn.textContent = "Logging in...";
+    btn.disabled = true;
+
+    try {
+      const res = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        errEl.textContent = data.message || "Login failed";
+        errEl.style.display = "block";
+        btn.textContent = "Login";
+        btn.disabled = false;
+        return;
+      }
+
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("email", data.user.email);
+      localStorage.setItem("username", data.user.name);
+
+      const sucEl = document.getElementById("sucMsg");
+      sucEl.textContent = `Welcome back, ${data.user.name}! 🌿`;
+      sucEl.style.display = "block";
+
+      setTimeout(() => window.location = "index.html", 800);
+    } catch {
+      errEl.textContent = "Server error. Is the backend running?";
+      errEl.style.display = "block";
+      btn.textContent = "Login";
+      btn.disabled = false;
+    }
+  }
+</script>
+</body>
+</html>
