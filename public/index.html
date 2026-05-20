@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Nani Ki Nushke - Home Remedies</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<header>
+  <a href="index.html" class="logo"><span>🌿</span> Nani Ki Nushke</a>
+  <nav>
+    <a href="index.html" class="active">Home</a>
+    <a href="dashboard.html" id="nav-add" style="display:none">+ Add Remedy</a>
+    <a href="profile.html" id="nav-profile" style="display:none">My Profile</a>
+    <a href="login.html" id="nav-login">Login</a>
+    <a href="register.html" id="nav-register" class="btn-nav">Sign Up</a>
+    <a href="#" id="nav-logout" style="display:none" onclick="logout()">Logout</a>
+  </nav>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <h1>Nature's Wisdom,<br>One Remedy at a Time 🌺</h1>
+  <p>Discover trusted home remedies passed down through generations</p>
+  <div class="search-wrap">
+    <input type="text" id="searchInput" placeholder="Search remedies, ingredients..." 
+           oninput="getSuggestions()" onkeydown="if(event.key==='Enter') searchRemedies()"/>
+    <button onclick="searchRemedies()">Search</button>
+    <div id="suggestions"></div>
+  </div>
+</section>
+
+<!-- CATEGORIES -->
+<div class="categories" id="categories">
+  <div class="cat-pill active" onclick="filterCat('All', this)">🌿 All</div>
+  <div class="cat-pill" onclick="filterCat('Cold & Cough', this)">🤧 Cold & Cough</div>
+  <div class="cat-pill" onclick="filterCat('Digestion', this)">🫁 Digestion</div>
+  <div class="cat-pill" onclick="filterCat('Skin Care', this)">✨ Skin Care</div>
+  <div class="cat-pill" onclick="filterCat('Hair Care', this)">💆 Hair Care</div>
+  <div class="cat-pill" onclick="filterCat('Immunity', this)">🛡️ Immunity</div>
+  <div class="cat-pill" onclick="filterCat('Pain Relief', this)">💊 Pain Relief</div>
+  <div class="cat-pill" onclick="filterCat('Sleep', this)">😴 Sleep</div>
+  <div class="cat-pill" onclick="filterCat('General', this)">🌱 General</div>
+</div>
+
+<div class="section-title" id="feed-title">✨ Most Liked Remedies</div>
+
+<!-- FEED -->
+<div id="feed">
+  <div class="empty-state">
+    <div class="icon">🌿</div>
+    <h3>Loading remedies...</h3>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <button class="modal-close" onclick="closeModalDirect()">×</button>
+      <div class="cat-badge" id="modalCat"></div>
+      <h2 class="modal-title" id="modalTitle"></h2>
+      <div class="info-row">👤 <span id="modalAuthor"></span> &nbsp;·&nbsp; 📅 <span id="modalDate"></span></div>
+    </div>
+    <div class="modal-body">
+      <div class="section-label">🌿 Ingredients</div>
+      <div class="modal-ingredients" id="modalIngredients"></div>
+      <div class="section-label">📖 How to Use</div>
+      <p class="modal-desc" id="modalDesc"></p>
+
+      <div class="comments-section">
+        <h4 id="commentCount">💬 Comments</h4>
+        <div id="commentsList"></div>
+        <div class="comment-input-row" id="commentInputRow">
+          <input type="text" id="commentInput" placeholder="Add a comment..." 
+                 onkeydown="if(event.key==='Enter') postComment()"/>
+          <button onclick="postComment()">Post</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  const API = "http://localhost:5000/api";
+  let allRemedies = [];
+  let currentRemedyId = null;
+  let currentFilter = "All";
+  let suggestTimer = null;
+
+  // Auth nav
+  function updateNav() {
+    const user = localStorage.getItem("email");
+    if (user) {
+      document.getElementById("nav-add").style.display = "";
+      document.getElementById("nav-profile").style.display = "";
+      document.getElementById("nav-logout").style.display = "";
+      document.getElementById("nav-login").style.display = "none";
+      document.getElementById("nav-register").style.display = "none";
+    }
+  }
+
+  function logout() {
+    localStorage.clear();
+    window.location = "index.html";
+  }
+
+  // Toast
+  function toast(msg, duration = 2200) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), duration);
+  }
+
+  // Load feed
+  async function loadFeed() {
+    try {
+      const res = await fetch(`${API}/remedy/all`);
+      allRemedies = await res.json();
+      renderFeed(allRemedies);
+    } catch {
+      document.getElementById("feed").innerHTML =
+        '<div class="empty-state"><div class="icon">⚠️</div><h3>Could not load remedies</h3><p>Make sure the server is running</p></div>';
+    }
+  }
+
+  function renderFeed(data) {
+    const feedDiv = document.getElementById("feed");
+    const email = localStorage.getItem("email") || "";
+
+    if (!data.length) {
+      feedDiv.innerHTML = '<div class="empty-state"><div class="icon">🌱</div><h3>No remedies yet</h3><p>Be the first to share one!</p></div>';
+      return;
+    }
+
+    feedDiv.innerHTML = data.map(r => {
+      const initial = (r.userName || r.userEmail)[0].toUpperCase();
+      const date = new Date(r.createdAt).toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" });
+      return `
+        <div class="card" onclick="openModal(${r.id})">
+          <div class="card-top">
+            <div class="card-avatar">${initial}</div>
+            <div class="card-meta">
+              <div class="card-author">${r.userName || r.userEmail}</div>
+              <div class="card-date">${date}</div>
+            </div>
+            <div class="cat-badge">${r.category}</div>
+          </div>
+          <div class="card-body">
+            <div class="card-title">${r.title}</div>
+            <div class="card-desc">${r.description}</div>
+          </div>
+          <div class="card-footer">
+            <button class="like-btn" id="like-${r.id}" onclick="event.stopPropagation(); likeRemedy(${r.id})">
+              ❤️ <span id="lc-${r.id}">${r.likes}</span>
+            </button>
+            <button class="view-btn">Read more →</button>
+          </div>
+        </div>`;
+    }).join("");
+
+    // Mark liked cards
+    if (email) {
+      data.forEach(r => checkLiked(r.id, email));
+    }
+  }
+
+  async function checkLiked(id, email) {
+    try {
+      const res = await fetch(`${API}/remedy/liked/${id}?email=${encodeURIComponent(email)}`);
+      const { liked } = await res.json();
+      if (liked) document.getElementById(`like-${id}`)?.classList.add("liked");
+    } catch {}
+  }
+
+  async function likeRemedy(id) {
+    const email = localStorage.getItem("email");
+    if (!email) { toast("🔒 Login to like remedies"); return; }
+
+    const btn = document.getElementById(`like-${id}`);
+    const countEl = document.getElementById(`lc-${id}`);
+
+    const res = await fetch(`${API}/remedy/like/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userEmail: email })
+    });
+    const data = await res.json();
+
+    if (data.liked) {
+      btn.classList.add("liked");
+      countEl.textContent = parseInt(countEl.textContent) + 1;
+    } else {
+      btn.classList.remove("liked");
+      countEl.textContent = Math.max(0, parseInt(countEl.textContent) - 1);
+    }
+  }
+
+  function filterCat(cat, el) {
+    currentFilter = cat;
+    document.querySelectorAll(".cat-pill").forEach(p => p.classList.remove("active"));
+    el.classList.add("active");
+
+    const title = document.getElementById("feed-title");
+    if (cat === "All") {
+      renderFeed(allRemedies);
+      title.textContent = "✨ Most Liked Remedies";
+    } else {
+      const filtered = allRemedies.filter(r => r.category === cat);
+      renderFeed(filtered);
+      title.textContent = `🌿 ${cat} Remedies`;
+    }
+  }
+
+  // Search
+  async function searchRemedies() {
+    const q = document.getElementById("searchInput").value.trim();
+    document.getElementById("suggestions").style.display = "none";
+    if (!q) { renderFeed(allRemedies); document.getElementById("feed-title").textContent = "✨ Most Liked Remedies"; return; }
+
+    const res = await fetch(`${API}/remedy/search?q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+    renderFeed(data);
+    document.getElementById("feed-title").textContent = `🔍 Results for "${q}"`;
+  }
+
+  function getSuggestions() {
+    clearTimeout(suggestTimer);
+    const q = document.getElementById("searchInput").value.trim();
+    const box = document.getElementById("suggestions");
+    if (q.length < 2) { box.style.display = "none"; return; }
+
+    suggestTimer = setTimeout(async () => {
+      const res = await fetch(`${API}/remedy/suggest?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      if (!data.length) { box.style.display = "none"; return; }
+      box.innerHTML = data.map(s =>
+        `<div class="sug-item" onclick="selectSuggestion('${s.title.replace(/'/g,"\\'")}')">
+          🌿 ${s.title} <span>${s.category}</span>
+        </div>`
+      ).join("");
+      box.style.display = "block";
+    }, 300);
+  }
+
+  function selectSuggestion(title) {
+    document.getElementById("searchInput").value = title;
+    document.getElementById("suggestions").style.display = "none";
+    searchRemedies();
+  }
+
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".search-wrap")) {
+      document.getElementById("suggestions").style.display = "none";
+    }
+  });
+
+  // Modal
+  async function openModal(id) {
+    currentRemedyId = id;
+    try {
+      const [remedyRes, commentsRes] = await Promise.all([
+        fetch(`${API}/remedy/single/${id}`),
+        fetch(`${API}/remedy/comments/${id}`)
+      ]);
+      const r = await remedyRes.json();
+      const comments = await commentsRes.json();
+
+      document.getElementById("modalCat").textContent = r.category;
+      document.getElementById("modalTitle").textContent = r.title;
+      document.getElementById("modalAuthor").textContent = r.userName || r.userEmail;
+      document.getElementById("modalDate").textContent = new Date(r.createdAt).toLocaleDateString("en-IN", {day:"numeric", month:"long", year:"numeric"});
+      document.getElementById("modalIngredients").textContent = r.ingredients || "Not specified";
+      document.getElementById("modalDesc").textContent = r.description;
+
+      renderComments(comments);
+      document.getElementById("modalOverlay").classList.add("open");
+      document.body.style.overflow = "hidden";
+    } catch {
+      toast("Failed to load remedy");
+    }
+  }
+
+  function renderComments(comments) {
+    const list = document.getElementById("commentsList");
+    document.getElementById("commentCount").textContent = `💬 Comments (${comments.length})`;
+
+    if (!comments.length) {
+      list.innerHTML = '<p style="font-size:14px;color:#a8a29e;margin-bottom:8px;">Be the first to comment!</p>';
+      return;
+    }
+    list.innerHTML = comments.map(c => {
+      const initial = (c.userName || c.userEmail)[0].toUpperCase();
+      const time = new Date(c.createdAt).toLocaleDateString("en-IN", {day:"numeric", month:"short"});
+      return `
+        <div class="comment-item">
+          <div class="comment-avatar">${initial}</div>
+          <div class="comment-content">
+            <div class="comment-author">${c.userName}</div>
+            <div class="comment-text">${c.comment}</div>
+            <div class="comment-time">${time}</div>
+          </div>
+        </div>`;
+    }).join("");
+  }
+
+  async function postComment() {
+    const email = localStorage.getItem("email");
+    const name = localStorage.getItem("username");
+    if (!email) { toast("🔒 Login to comment"); return; }
+
+    const input = document.getElementById("commentInput");
+    const comment = input.value.trim();
+    if (!comment) return;
+
+    const res = await fetch(`${API}/remedy/comment/${currentRemedyId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userEmail: email, userName: name || email, comment })
+    });
+
+    if (res.ok) {
+      input.value = "";
+      const commentsRes = await fetch(`${API}/remedy/comments/${currentRemedyId}`);
+      renderComments(await commentsRes.json());
+    }
+  }
+
+  function closeModal(e) {
+    if (e.target === document.getElementById("modalOverlay")) closeModalDirect();
+  }
+
+  function closeModalDirect() {
+    document.getElementById("modalOverlay").classList.remove("open");
+    document.body.style.overflow = "";
+    currentRemedyId = null;
+  }
+
+  updateNav();
+  loadFeed();
+</script>
+</body>
+</html>
