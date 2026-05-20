@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>My Profile - Nani Ki Nushke</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+<header>
+  <a href="index.html" class="logo"><span>🌿</span> Nani Ki Nushke</a>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="dashboard.html">+ Add Remedy</a>
+    <a href="profile.html" class="active">My Profile</a>
+    <a href="#" onclick="logout()">Logout</a>
+  </nav>
+</header>
+
+<div class="page-container" style="max-width:860px">
+
+  <!-- Profile Header -->
+  <div class="profile-header-card">
+    <div class="profile-avatar" id="profileAvatar">?</div>
+    <div class="profile-info">
+      <h2 id="profileName">Loading...</h2>
+      <p id="profileEmail"></p>
+      <div class="profile-stats">
+        <div class="stat">
+          <div class="stat-num" id="statPosts">0</div>
+          <div class="stat-label">Remedies</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num" id="statLikes">0</div>
+          <div class="stat-label">Total Likes</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title" style="padding-left:0">🌿 My Remedies</div>
+
+  <div class="profile-posts-grid" id="myPosts">
+    <div style="color:#a8a29e; font-size:15px; padding:20px 0;">Loading your remedies...</div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  const email = localStorage.getItem("email");
+  const username = localStorage.getItem("username");
+
+  if (!email) window.location = "login.html";
+
+  function logout() {
+    localStorage.clear();
+    window.location = "index.html";
+  }
+
+  function toast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 2200);
+  }
+
+  async function loadProfile() {
+    document.getElementById("profileAvatar").textContent = (username || email)[0].toUpperCase();
+    document.getElementById("profileName").textContent = username || "My Profile";
+    document.getElementById("profileEmail").textContent = email;
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/remedy/my/${encodeURIComponent(email)}`);
+      const posts = await res.json();
+
+      document.getElementById("statPosts").textContent = posts.length;
+      const totalLikes = posts.reduce((sum, p) => sum + (p.likes || 0), 0);
+      document.getElementById("statLikes").textContent = totalLikes;
+
+      const container = document.getElementById("myPosts");
+
+      if (!posts.length) {
+        container.innerHTML = `
+          <div style="grid-column:1/-1; text-align:center; padding:60px 20px; color:#a8a29e;">
+            <div style="font-size:48px; margin-bottom:12px;">🌱</div>
+            <h3 style="color:#57534e; margin-bottom:8px;">No remedies yet</h3>
+            <p>Share your first home remedy!</p>
+            <a href="dashboard.html" style="display:inline-block; margin-top:16px; background:#c2410c; color:white; padding:10px 24px; border-radius:50px; text-decoration:none; font-weight:600;">+ Add Remedy</a>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = posts.map(p => `
+        <div class="profile-card">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+            <div class="cat-badge" style="font-size:12px;">${p.category}</div>
+            <div style="font-size:12px; color:#a8a29e; margin-left:auto;">${new Date(p.createdAt).toLocaleDateString("en-IN", {day:"numeric", month:"short", year:"numeric"})}</div>
+          </div>
+          <h3>${p.title}</h3>
+          <p>${p.description}</p>
+          <div class="card-actions">
+            <div class="like-count">❤️ ${p.likes} likes</div>
+            <button class="btn-delete" onclick="deleteRemedy(${p.id}, this)">🗑️ Delete</button>
+          </div>
+        </div>
+      `).join("");
+    } catch {
+      document.getElementById("myPosts").innerHTML = '<p style="color:#dc2626">Could not load posts. Is the server running?</p>';
+    }
+  }
+
+  async function deleteRemedy(id, btn) {
+    if (!confirm("Delete this remedy permanently?")) return;
+
+    btn.textContent = "Deleting...";
+    btn.disabled = true;
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/remedy/delete/${id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userEmail: email })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        toast("Remedy deleted ✓");
+        loadProfile();
+      } else {
+        toast(data.message || "Delete failed");
+        btn.textContent = "🗑️ Delete";
+        btn.disabled = false;
+      }
+    } catch {
+      toast("Error deleting remedy");
+      btn.textContent = "🗑️ Delete";
+      btn.disabled = false;
+    }
+  }
+
+  loadProfile();
+</script>
+</body>
+</html>
