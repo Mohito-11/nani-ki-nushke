@@ -166,14 +166,18 @@ http://localhost:5000
 - Successfully deployed production-ready application on Render
 
 ---
+## 🤝 Built With Collaboration
 
-<p align="left">
-  <a href="https://github.com/your-github-username">GitHub</a>
+<p align="center">
+  <a href="https://github.com/Mohito-11">
+    <img src="https://img.shields.io/badge/Mohit_Dutta-181717?style=for-the-badge&logo=github&logoColor=white" />
+  </a>
+  
+  <a href="https://github.com/PREETAM061">
+    <img src="https://img.shields.io/badge/Preetam_Kumar_Giri-181717?style=for-the-badge&logo=github&logoColor=white" />
+  </a>
 </p>
-
----
 
 ## ⭐ Support
 
 If you like this project, consider giving it a ⭐ on GitHub.
-````
