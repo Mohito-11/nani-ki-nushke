@@ -101,7 +101,7 @@
     btn.disabled = true;
 
     try {
-      const res = await fetch("http://localhost:5000/api/remedy/create", {
+      const res = await fetch("/api/remedy/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, description, ingredients, category, userEmail: email, userName: username || email })
