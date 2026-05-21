@@ -72,7 +72,7 @@
     document.getElementById("profileEmail").textContent = email;
 
     try {
-      const res = await fetch(`http://localhost:5000/api/remedy/my/${encodeURIComponent(email)}`);
+      const res = await fetch(`/api/remedy/my/${encodeURIComponent(email)}`);
       const posts = await res.json();
 
       document.getElementById("statPosts").textContent = posts.length;
@@ -118,7 +118,7 @@
     btn.disabled = true;
 
     try {
-      const res = await fetch(`http://localhost:5000/api/remedy/delete/${id}`, {
+      const res = await fetch(`/api/remedy/delete/${id}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userEmail: email })
